@@ -147,25 +147,18 @@
   .vela-pill {
     @apply px-3 py-2 rounded-lg text-sm font-bold border;
     border-color: hsl(var(--border));
+    background: hsl(var(--background));
   }
 
-  .vela-pill-red {
-    background: hsl(0 50% 12%);
-    color: hsl(0 100% 68%);
-  }
-
-  .vela-pill-green {
-    background: hsl(142 50% 10%);
-    color: hsl(142 80% 55%);
+  .vela-pill-blue {
+    color: hsl(var(--accent));
   }
 
   .vela-pill-purple {
-    background: hsl(270 40% 15%);
     color: hsl(var(--purple));
   }
 
   .vela-pill-pink {
-    background: hsl(330 40% 15%);
     color: hsl(var(--pink));
   }
 

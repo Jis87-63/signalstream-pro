@@ -21,33 +21,33 @@
  
    return (
      <Dialog open={open} onOpenChange={onClose}>
-       <DialogContent className="bg-gradient-to-br from-card to-background border-2 border-accent max-w-[400px] p-6">
+      <DialogContent className="bg-card border-accent/50 max-w-[360px] mx-4 p-6 rounded-3xl">
          <DialogHeader>
            <div className="flex justify-center mb-4">
-             <div className="w-16 h-16 bg-accent/20 rounded-full flex items-center justify-center">
+            <div className="w-14 h-14 bg-accent/20 rounded-full flex items-center justify-center">
                <Bell className="w-8 h-8 text-accent" />
              </div>
            </div>
-           <DialogTitle className="text-foreground text-center text-xl font-bold">
+          <DialogTitle className="text-foreground text-center text-lg font-bold">
              Ativar Notificações
            </DialogTitle>
          </DialogHeader>
          
          <div className="space-y-4">
-           <p className="text-muted-foreground text-center text-[15px] leading-relaxed">
+          <p className="text-muted-foreground text-center text-sm leading-relaxed">
              Receba alertas instantâneos de novas entradas e resultados GREEN diretamente no seu dispositivo, mesmo quando não estiver no site!
            </p>
            
-           <div className="bg-secondary/50 rounded-lg p-3 space-y-2">
-             <div className="flex items-center gap-2 text-sm text-foreground">
+          <div className="bg-background rounded-xl p-3 space-y-2">
+            <div className="flex items-center gap-2 text-xs text-foreground">
                <span className="text-primary">✅</span>
                <span>Alertas de novas entradas</span>
              </div>
-             <div className="flex items-center gap-2 text-sm text-foreground">
+            <div className="flex items-center gap-2 text-xs text-foreground">
                <span className="text-primary">✅</span>
                <span>Notificações de GREEN</span>
              </div>
-             <div className="flex items-center gap-2 text-sm text-foreground">
+            <div className="flex items-center gap-2 text-xs text-foreground">
                <span className="text-primary">✅</span>
                <span>Nunca perca uma entrada</span>
              </div>
@@ -57,14 +57,14 @@
              <Button 
                onClick={onClose}
                variant="secondary"
-               className="flex-1 font-semibold"
+              className="flex-1 font-semibold rounded-xl"
              >
                Depois
              </Button>
              
              <Button 
                onClick={handleAllow}
-               className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground font-bold"
+              className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground font-bold rounded-xl"
              >
                Permitir
              </Button>

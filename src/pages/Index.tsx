@@ -57,7 +57,7 @@ const Index = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background pb-16">
+    <div className="min-h-screen bg-background pb-6">
       <Header isConnected={isConnected} />
       
       <main className="p-4 flex flex-col gap-4 max-w-[900px] mx-auto">
@@ -72,9 +72,9 @@ const Index = () => {
         />
         
         <GameIframe />
+        
+        <Footer />
       </main>
-
-      <Footer />
 
       {/* Modals */}
       <NotificationModal 
