@@ -14,8 +14,8 @@ import { useModalSequence } from '@/hooks/useModalSequence';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 const Index = () => {
-  const { velas, isConnected } = useFirebaseVelas();
-  const signal = useSignalLogic(velas);
+  const { velas, isConnected, lastTimestamp } = useFirebaseVelas();
+  const signal = useSignalLogic(velas, lastTimestamp || undefined);
   const { 
     closeModal, 
     showNotificationModal, 
@@ -25,7 +25,7 @@ const Index = () => {
   } = useModalSequence();
   const { requestPermission } = usePushNotifications();
 
-  // Block context menu and keyboard shortcuts
+  // Bloquear menu de contexto e atalhos de desenvolvedor
   useEffect(() => {
     const handleContextMenu = (e: Event) => {
       e.preventDefault();
@@ -33,7 +33,6 @@ const Index = () => {
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Block F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U, Ctrl+S, Ctrl+Shift+C
       if (
         e.keyCode === 123 ||
         (e.ctrlKey && e.shiftKey && e.keyCode === 73) ||
@@ -61,7 +60,7 @@ const Index = () => {
       <Header isConnected={isConnected} />
       
       <main className="p-4 flex flex-col gap-4 max-w-[900px] mx-auto">
-        <VelasCard velas={velas} isConnected={isConnected} />
+        <VelasCard velas={velas} isConnected={isConnected && signal.isServerActive} />
         
         <EntryCard 
           aposde={signal.aposde}
@@ -76,11 +75,15 @@ const Index = () => {
         <Footer />
       </main>
 
-      {/* Modals */}
+      {/* Modais - ordem: Notificação → Aviso → WhatsApp → Premium */}
       <NotificationModal 
         open={showNotificationModal} 
         onClose={closeModal}
         onAllow={requestPermission}
+      />
+      <AvisoModal 
+        open={showAvisoModal} 
+        onClose={closeModal} 
       />
       <WhatsAppModal 
         open={showWhatsAppModal} 
@@ -88,10 +91,6 @@ const Index = () => {
       />
       <BotPremiumModal 
         open={showPremiumModal} 
-        onClose={closeModal} 
-      />
-      <AvisoModal 
-        open={showAvisoModal} 
         onClose={closeModal} 
       />
     </div>
