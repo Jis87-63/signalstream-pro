@@ -49,6 +49,7 @@ const getClientIP = (req: Request): string => {
 
 serve(async (req) => {
   const origin = req.headers.get("origin");
+  const referer = req.headers.get("referer");
   const corsHeaders = getCorsHeaders(origin);
   
   // Verificar se a origem é permitida
@@ -58,23 +59,27 @@ serve(async (req) => {
     origin.includes("lovableproject.com")
   );
 
+  // Verificar também o referer para bloquear acesso direto via browser
+  const hasValidReferer = referer && ALLOWED_ORIGINS.some(allowed => referer.startsWith(allowed));
+  const isFromAllowedSource = isAllowed || hasValidReferer;
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Bloquear requisições de origens não permitidas
-  if (!isAllowed && origin) {
+  // Bloquear acesso direto (sem origin) ou de origens não permitidas
+  if (!isFromAllowedSource) {
     const clientIP = getClientIP(req);
     return new Response(
       JSON.stringify({
         permissao: "block",
         visualizar_chaves: "block",
         ip_bloqueado: clientIP,
-        mensagem: "Acesso não autorizado",
+        mensagem: "Acesso não autorizado. Este endpoint só pode ser acessado através dos sites oficiais.",
       }),
       {
         status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
       }
     );
   }
