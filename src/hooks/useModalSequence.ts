@@ -19,6 +19,9 @@ export const useModalSequence = () => {
   // Sequência inicial - SEMPRE ao entrar no site
   useEffect(() => {
     if (hasInitialized) return;
+    
+    // Marca como inicializado PRIMEIRO para evitar múltiplas execuções
+    setHasInitialized(true);
 
     const timer = setTimeout(() => {
       let permission: NotificationPermission = 'default';
@@ -28,7 +31,7 @@ export const useModalSequence = () => {
           permission = window.Notification.permission;
         }
       } catch {
-        // se algo falhar, seguimos com o fluxo sem travar
+        // Ignora erro silenciosamente
       }
 
       // Se NÃO permitiu notificações, mostrar o modal de permissão primeiro
@@ -46,8 +49,6 @@ export const useModalSequence = () => {
       setCurrentModal('premium');
     }, PREMIUM_DELAY);
     timersRef.current.push(premiumTimer);
-
-    setHasInitialized(true);
 
     return () => clearAllTimers();
   }, [hasInitialized]);
