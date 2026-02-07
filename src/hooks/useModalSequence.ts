@@ -8,6 +8,7 @@ const WHATSAPP_DELAY = 3 * 60 * 1000; // 3 minutos após premium
 export const useModalSequence = () => {
   const [currentModal, setCurrentModal] = useState<ModalType>(null);
   const [hasInitialized, setHasInitialized] = useState(false);
+  const _sessionStartRef = useRef(Date.now()); // Mantido para preservar ordem dos hooks
   const timersRef = useRef<NodeJS.Timeout[]>([]);
 
   const clearAllTimers = () => {
