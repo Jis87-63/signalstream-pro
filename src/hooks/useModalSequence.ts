@@ -2,14 +2,12 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 
 type ModalType = 'notification' | 'aviso' | 'whatsapp' | 'premium' | null;
 
-const MODAL_STORAGE_KEY = 'sscashout_modals_shown';
 const PREMIUM_DELAY = 5 * 60 * 1000; // 5 minutos
 const WHATSAPP_DELAY = 3 * 60 * 1000; // 3 minutos após premium
 
 export const useModalSequence = () => {
   const [currentModal, setCurrentModal] = useState<ModalType>(null);
   const [hasInitialized, setHasInitialized] = useState(false);
-  const sessionStartRef = useRef(Date.now());
   const timersRef = useRef<NodeJS.Timeout[]>([]);
 
   const clearAllTimers = () => {
@@ -17,30 +15,25 @@ export const useModalSequence = () => {
     timersRef.current = [];
   };
 
-  // Sequência inicial ao entrar no site
+  // Sequência inicial - SEMPRE ao entrar no site
   useEffect(() => {
     if (hasInitialized) return;
 
-    const modalsShown = sessionStorage.getItem(MODAL_STORAGE_KEY);
+    // Sempre mostrar modais ao iniciar o site
+    const notificationPermission = Notification.permission;
     
-    if (!modalsShown) {
-      // Primeira visita na sessão - mostrar modal de notificação após 2s
-      const notificationPermission = Notification.permission;
-      
-      if (notificationPermission === 'default') {
-        const timer = setTimeout(() => {
-          setCurrentModal('notification');
-        }, 2000);
-        timersRef.current.push(timer);
-      } else {
-        // Notificações já configuradas, mostrar aviso
-        const timer = setTimeout(() => {
-          setCurrentModal('aviso');
-        }, 2000);
-        timersRef.current.push(timer);
-      }
-      
-      sessionStorage.setItem(MODAL_STORAGE_KEY, 'true');
+    // Se ainda não deu permissão, mostrar modal de notificação primeiro
+    if (notificationPermission === 'default') {
+      const timer = setTimeout(() => {
+        setCurrentModal('notification');
+      }, 2000);
+      timersRef.current.push(timer);
+    } else {
+      // Já tem permissão, ir direto para aviso de criar conta
+      const timer = setTimeout(() => {
+        setCurrentModal('aviso');
+      }, 2000);
+      timersRef.current.push(timer);
     }
 
     // Configurar timer para modal premium após 5 minutos
