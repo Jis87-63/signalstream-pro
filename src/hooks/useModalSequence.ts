@@ -20,22 +20,26 @@ export const useModalSequence = () => {
   useEffect(() => {
     if (hasInitialized) return;
 
-    // Sempre mostrar modais ao iniciar o site
-    const notificationPermission = Notification.permission;
-    
-    // Se ainda não deu permissão, mostrar modal de notificação primeiro
-    if (notificationPermission === 'default') {
-      const timer = setTimeout(() => {
+    const timer = setTimeout(() => {
+      let permission: NotificationPermission = 'default';
+
+      try {
+        if (typeof window !== 'undefined' && 'Notification' in window) {
+          permission = window.Notification.permission;
+        }
+      } catch {
+        // se algo falhar, seguimos com o fluxo sem travar
+      }
+
+      // Se NÃO permitiu notificações, mostrar o modal de permissão primeiro
+      if (permission !== 'granted') {
         setCurrentModal('notification');
-      }, 2000);
-      timersRef.current.push(timer);
-    } else {
-      // Já tem permissão, ir direto para aviso de criar conta
-      const timer = setTimeout(() => {
+      } else {
         setCurrentModal('aviso');
-      }, 2000);
-      timersRef.current.push(timer);
-    }
+      }
+    }, 2000);
+
+    timersRef.current.push(timer);
 
     // Configurar timer para modal premium após 5 minutos
     const premiumTimer = setTimeout(() => {
