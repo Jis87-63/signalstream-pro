@@ -7,21 +7,25 @@ const WHATSAPP_DELAY = 3 * 60 * 1000; // 3 minutos após premium
 
 export const useModalSequence = () => {
   const [currentModal, setCurrentModal] = useState<ModalType>(null);
-  const [hasInitialized, setHasInitialized] = useState(false);
-  const _sessionStartRef = useRef(Date.now()); // Mantido para preservar ordem dos hooks
-  const timersRef = useRef<NodeJS.Timeout[]>([]);
+
+  // IMPORTANT: useRef para não disparar cleanup por mudança de estado.
+  // Com useState + dependency, o cleanup roda e limpa os timers antes deles dispararem.
+  const hasInitializedRef = useRef(false);
+
+  // Mantido para preservar ordem dos hooks (histórico do projeto)
+  const _sessionStartRef = useRef(Date.now());
+
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const clearAllTimers = () => {
-    timersRef.current.forEach(timer => clearTimeout(timer));
+    timersRef.current.forEach((timer) => clearTimeout(timer));
     timersRef.current = [];
   };
 
   // Sequência inicial - SEMPRE ao entrar no site
   useEffect(() => {
-    if (hasInitialized) return;
-    
-    // Marca como inicializado PRIMEIRO para evitar múltiplas execuções
-    setHasInitialized(true);
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
 
     const timer = setTimeout(() => {
       let permission: NotificationPermission = 'default';
@@ -51,12 +55,12 @@ export const useModalSequence = () => {
     timersRef.current.push(premiumTimer);
 
     return () => clearAllTimers();
-  }, [hasInitialized]);
+  }, []);
 
   const closeModal = useCallback(() => {
     const current = currentModal;
     setCurrentModal(null);
-    
+
     // Sequência de modais
     if (current === 'notification') {
       // Após notificação, mostrar aviso (criar conta) após 500ms
