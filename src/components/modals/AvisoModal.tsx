@@ -10,11 +10,18 @@ import { AlertTriangle, ExternalLink } from "lucide-react";
 interface AvisoModalProps {
   open: boolean;
   onClose: () => void;
+  onTrackAction?: (tipo: 'registro' | 'ja_tenho_conta' | 'whatsapp') => void;
 }
 
-export const AvisoModal = ({ open, onClose }: AvisoModalProps) => {
+export const AvisoModal = ({ open, onClose, onTrackAction }: AvisoModalProps) => {
   const handleCreateAccount = () => {
+    onTrackAction?.('registro');
     window.open('https://go.aff.oddsbest.co/uvvguo18', '_blank');
+    onClose();
+  };
+
+  const handleAlreadyHaveAccount = () => {
+    onTrackAction?.('ja_tenho_conta');
     onClose();
   };
 
@@ -56,7 +63,7 @@ export const AvisoModal = ({ open, onClose }: AvisoModalProps) => {
               </Button>
               
               <Button 
-                onClick={onClose}
+                onClick={handleAlreadyHaveAccount}
                 variant="ghost"
                 className="w-full text-muted-foreground/60 hover:text-muted-foreground font-normal text-sm h-10 rounded-xl"
               >
