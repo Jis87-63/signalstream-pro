@@ -8,13 +8,21 @@ import { WhatsAppModal } from '@/components/modals/WhatsAppModal';
 import { BotPremiumModal } from '@/components/modals/BotPremiumModal';
 import { AvisoModal } from '@/components/modals/AvisoModal';
 import { NotificationModal } from '@/components/modals/NotificationModal';
+import { ConnectionSuccessModal } from '@/components/modals/ConnectionSuccessModal';
 import { useFirebaseVelas } from '@/hooks/useFirebaseVelas';
 import { useSignalLogic } from '@/hooks/useSignalLogic';
 import { useModalSequence } from '@/hooks/useModalSequence';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 const Index = () => {
-  const { velas, isConnected, lastTimestamp } = useFirebaseVelas();
+  const { 
+    velas, 
+    isConnected, 
+    lastTimestamp, 
+    connectionStatus,
+    showConnectionSuccess,
+    closeConnectionSuccess
+  } = useFirebaseVelas();
   const signal = useSignalLogic(velas, lastTimestamp || undefined);
   const { 
     closeModal, 
@@ -60,7 +68,11 @@ const Index = () => {
       <Header isConnected={isConnected} />
       
       <main className="p-4 flex flex-col gap-4 max-w-[900px] mx-auto">
-        <VelasCard velas={velas} isConnected={isConnected && signal.isServerActive} />
+        <VelasCard 
+          velas={velas} 
+          isConnected={isConnected && signal.isServerActive} 
+          connectionStatus={connectionStatus}
+        />
         
         <EntryCard 
           aposde={signal.aposde}
@@ -74,6 +86,12 @@ const Index = () => {
         
         <Footer />
       </main>
+
+      {/* Modal de sucesso na conexão */}
+      <ConnectionSuccessModal 
+        open={showConnectionSuccess} 
+        onClose={closeConnectionSuccess} 
+      />
 
       {/* Modais - ordem: Notificação → Aviso → WhatsApp → Premium */}
       <NotificationModal 
