@@ -14,13 +14,147 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      acoes_usuarios: {
+        Row: {
+          created_at: string
+          data: string
+          id: string
+          ip_hash: string | null
+          tipo: string
+        }
+        Insert: {
+          created_at?: string
+          data?: string
+          id?: string
+          ip_hash?: string | null
+          tipo: string
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          id?: string
+          ip_hash?: string | null
+          tipo?: string
+        }
+        Relationships: []
+      }
+      estatisticas_diarias: {
+        Row: {
+          data: string
+          id: string
+          total_greens: number
+          total_loss: number
+          total_registros: number
+          total_sinais: number
+          total_visitantes: number
+          total_whatsapp: number
+          updated_at: string
+        }
+        Insert: {
+          data?: string
+          id?: string
+          total_greens?: number
+          total_loss?: number
+          total_registros?: number
+          total_sinais?: number
+          total_visitantes?: number
+          total_whatsapp?: number
+          updated_at?: string
+        }
+        Update: {
+          data?: string
+          id?: string
+          total_greens?: number
+          total_loss?: number
+          total_registros?: number
+          total_sinais?: number
+          total_visitantes?: number
+          total_whatsapp?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sinais: {
+        Row: {
+          apos_de: number
+          cashout: number
+          created_at: string
+          id: string
+          resultado: string | null
+          tentativas: number
+          vela_final: number | null
+        }
+        Insert: {
+          apos_de: number
+          cashout: number
+          created_at?: string
+          id?: string
+          resultado?: string | null
+          tentativas?: number
+          vela_final?: number | null
+        }
+        Update: {
+          apos_de?: number
+          cashout?: number
+          created_at?: string
+          id?: string
+          resultado?: string | null
+          tentativas?: number
+          vela_final?: number | null
+        }
+        Relationships: []
+      }
+      velas_historico: {
+        Row: {
+          created_at: string
+          id: string
+          servidor: string
+          valor: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          servidor?: string
+          valor: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          servidor?: string
+          valor?: number
+        }
+        Relationships: []
+      }
+      visitantes: {
+        Row: {
+          created_at: string
+          data: string
+          id: string
+          ip_hash: string
+        }
+        Insert: {
+          created_at?: string
+          data?: string
+          id?: string
+          ip_hash: string
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          id?: string
+          ip_hash?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      incrementar_estatistica: {
+        Args: { p_campo: string; p_valor?: number }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

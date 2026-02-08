@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { usePushNotifications } from './usePushNotifications';
 
 interface SignalData {
   aposde: string;
   cashout: string;
   tentativas: number;
-  status: 'aguardando' | 'green' | 'loss';
+  status: 'aguardando' | 'green' | 'loss' | 'analisando';
   velaFinal?: string;
   isActive: boolean;
 }
@@ -68,16 +69,62 @@ const analyzePattern = (velas: number[]): { shouldEnter: boolean; cashout: numbe
   };
 };
 
-export const useSignalLogic = (velas: string[], lastTimestamp?: number) => {
+// Salvar sinal no banco de dados
+const saveSignal = async (aposde: number, cashout: number, tentativas: number) => {
+  try {
+    const { data, error } = await supabase
+      .from('sinais')
+      .insert({
+        apos_de: aposde,
+        cashout: cashout,
+        tentativas: tentativas,
+        resultado: 'aguardando'
+      })
+      .select('id')
+      .single();
+    
+    if (error) throw error;
+    
+    // Incrementar contador de sinais
+    await supabase.rpc('incrementar_estatistica', { p_campo: 'total_sinais' });
+    
+    return data?.id;
+  } catch (err) {
+    console.error('Erro ao salvar sinal:', err);
+    return null;
+  }
+};
+
+// Atualizar resultado do sinal
+const updateSignalResult = async (signalId: string, resultado: 'green' | 'loss', velaFinal: number) => {
+  try {
+    await supabase
+      .from('sinais')
+      .update({
+        resultado,
+        vela_final: velaFinal
+      })
+      .eq('id', signalId);
+    
+    // Incrementar contador correspondente
+    const campo = resultado === 'green' ? 'total_greens' : 'total_loss';
+    await supabase.rpc('incrementar_estatistica', { p_campo: campo });
+  } catch (err) {
+    console.error('Erro ao atualizar sinal:', err);
+  }
+};
+
+export const useSignalLogic = (velas: string[], lastTimestamp?: number, isConnected: boolean = false) => {
   const [signal, setSignal] = useState<SignalData>({
     aposde: '--',
     cashout: '--',
     tentativas: 0,
-    status: 'aguardando',
+    status: 'analisando',
     isActive: false,
   });
   
   const lastVelaRef = useRef<string>('');
+  const currentSignalIdRef = useRef<string | null>(null);
   const { sendEntryNotification, sendGreenNotification, permission } = usePushNotifications();
 
   // Verificar se o servidor está ativo (timestamp recente)
@@ -90,18 +137,30 @@ export const useSignalLogic = (velas: string[], lastTimestamp?: number) => {
   }, [lastTimestamp]);
 
   // Gerar sinal baseado nos padrões das velas
-  const generateSignal = useCallback(() => {
+  const generateSignal = useCallback(async () => {
     if (velas.length < 4) return;
     if (!isServerActive()) return;
+
+    // Mostrar "analisando" enquanto processa
+    setSignal(prev => ({
+      ...prev,
+      status: 'analisando',
+      isActive: false,
+    }));
 
     const numericVelas = velas.slice(0, 10).map(v => parseFloat(v));
     const analysis = analyzePattern(numericVelas);
     
     if (analysis.shouldEnter) {
       // "Apos de" mostra a última vela
-      const ultimaVela = `${numericVelas[0].toFixed(2)}x`;
+      const ultimaVelaNum = numericVelas[0];
+      const ultimaVela = `${ultimaVelaNum.toFixed(2)}x`;
       const cashoutValue = analysis.cashout.toFixed(2);
       const tentativas = analysis.confidence >= 70 ? 1 : 2;
+      
+      // Salvar sinal no banco
+      const signalId = await saveSignal(ultimaVelaNum, analysis.cashout, tentativas);
+      currentSignalIdRef.current = signalId;
       
       setSignal({
         aposde: ultimaVela,
@@ -115,11 +174,20 @@ export const useSignalLogic = (velas: string[], lastTimestamp?: number) => {
       if (permission === 'granted') {
         sendEntryNotification(ultimaVela, `${cashoutValue}x`, tentativas);
       }
+    } else {
+      // Não há entrada - mostrar analisando
+      setSignal({
+        aposde: '--',
+        cashout: '--',
+        tentativas: 0,
+        status: 'analisando',
+        isActive: false,
+      });
     }
   }, [velas, permission, sendEntryNotification, isServerActive]);
 
   // Verificar resultado (GREEN ou LOSS)
-  const checkResult = useCallback(() => {
+  const checkResult = useCallback(async () => {
     if (signal.status !== 'aguardando' || !signal.isActive || velas.length === 0) return;
     
     const latestVela = parseFloat(velas[0]);
@@ -128,6 +196,12 @@ export const useSignalLogic = (velas: string[], lastTimestamp?: number) => {
     if (!isNaN(latestVela) && !isNaN(cashoutTarget)) {
       if (latestVela >= cashoutTarget) {
         const velaFinal = `${latestVela.toFixed(2)}x`;
+        
+        // Atualizar no banco
+        if (currentSignalIdRef.current) {
+          await updateSignalResult(currentSignalIdRef.current, 'green', latestVela);
+        }
+        
         setSignal(prev => ({
           ...prev,
           status: 'green',
@@ -140,11 +214,12 @@ export const useSignalLogic = (velas: string[], lastTimestamp?: number) => {
 
         // Reset após 10 segundos
         setTimeout(() => {
+          currentSignalIdRef.current = null;
           setSignal({
             aposde: '--',
             cashout: '--',
             tentativas: 0,
-            status: 'aguardando',
+            status: 'analisando',
             isActive: false,
           });
         }, 10000);
@@ -154,7 +229,7 @@ export const useSignalLogic = (velas: string[], lastTimestamp?: number) => {
 
   // Detectar nova vela e gerar sinal
   useEffect(() => {
-    if (velas.length === 0) return;
+    if (!isConnected || velas.length === 0) return;
     
     const currentVela = velas[0];
     
@@ -170,11 +245,11 @@ export const useSignalLogic = (velas: string[], lastTimestamp?: number) => {
         checkResult();
       }
     }
-  }, [velas, signal.isActive, signal.status, generateSignal, checkResult]);
+  }, [velas, isConnected, signal.isActive, signal.status, generateSignal, checkResult]);
 
   // Atualizar "apos de" com a última vela quando não há sinal ativo
   useEffect(() => {
-    if (!signal.isActive && velas.length > 0 && isServerActive()) {
+    if (!signal.isActive && velas.length > 0 && isServerActive() && isConnected) {
       const ultimaVela = parseFloat(velas[0]);
       if (!isNaN(ultimaVela)) {
         setSignal(prev => ({
@@ -183,7 +258,7 @@ export const useSignalLogic = (velas: string[], lastTimestamp?: number) => {
         }));
       }
     }
-  }, [velas, signal.isActive, isServerActive]);
+  }, [velas, signal.isActive, isServerActive, isConnected]);
 
   return {
     ...signal,

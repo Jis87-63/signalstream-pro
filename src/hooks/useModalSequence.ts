@@ -1,20 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-type ModalType = 'notification' | 'aviso' | 'whatsapp' | 'premium' | null;
+type ModalType = 'notification' | 'aviso' | 'whatsapp' | 'premium' | 'connection' | null;
 
 const PREMIUM_DELAY = 5 * 60 * 1000; // 5 minutos
 const WHATSAPP_DELAY = 3 * 60 * 1000; // 3 minutos após premium
 
 export const useModalSequence = () => {
   const [currentModal, setCurrentModal] = useState<ModalType>(null);
+  const [initialSequenceComplete, setInitialSequenceComplete] = useState(false);
 
   // IMPORTANT: useRef para não disparar cleanup por mudança de estado.
-  // Com useState + dependency, o cleanup roda e limpa os timers antes deles dispararem.
   const hasInitializedRef = useRef(false);
-
-  // Mantido para preservar ordem dos hooks (histórico do projeto)
-  const _sessionStartRef = useRef(Date.now());
-
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const clearAllTimers = () => {
@@ -22,7 +18,7 @@ export const useModalSequence = () => {
     timersRef.current = [];
   };
 
-  // Sequência inicial - SEMPRE ao entrar no site
+  // Sequência inicial - Notificação primeiro, depois Aviso
   useEffect(() => {
     if (hasInitializedRef.current) return;
     hasInitializedRef.current = true;
@@ -48,12 +44,6 @@ export const useModalSequence = () => {
 
     timersRef.current.push(timer);
 
-    // Configurar timer para modal premium após 5 minutos
-    const premiumTimer = setTimeout(() => {
-      setCurrentModal('premium');
-    }, PREMIUM_DELAY);
-    timersRef.current.push(premiumTimer);
-
     return () => clearAllTimers();
   }, []);
 
@@ -61,13 +51,21 @@ export const useModalSequence = () => {
     const current = currentModal;
     setCurrentModal(null);
 
-    // Sequência de modais
+    // Sequência de modais iniciais
     if (current === 'notification') {
       // Após notificação, mostrar aviso (criar conta) após 500ms
       const timer = setTimeout(() => setCurrentModal('aviso'), 500);
       timersRef.current.push(timer);
     } else if (current === 'aviso') {
-      // Nada imediato após aviso - premium virá pelo timer de 5 min
+      // Após aviso, marcar sequência inicial como completa
+      // Isso vai disparar a conexão com o servidor
+      setInitialSequenceComplete(true);
+    } else if (current === 'connection') {
+      // Após modal de conexão, configurar timer para premium
+      const premiumTimer = setTimeout(() => {
+        setCurrentModal('premium');
+      }, PREMIUM_DELAY);
+      timersRef.current.push(premiumTimer);
     } else if (current === 'premium') {
       // Após premium, mostrar whatsapp após 3 minutos
       const timer = setTimeout(() => {
@@ -83,6 +81,11 @@ export const useModalSequence = () => {
     }
   }, [currentModal]);
 
+  // Função para mostrar modal de conexão (chamada pelo hook de velas)
+  const showConnectionModal = useCallback(() => {
+    setCurrentModal('connection');
+  }, []);
+
   return {
     currentModal,
     closeModal,
@@ -90,5 +93,8 @@ export const useModalSequence = () => {
     showWhatsAppModal: currentModal === 'whatsapp',
     showPremiumModal: currentModal === 'premium',
     showAvisoModal: currentModal === 'aviso',
+    showConnectionModal: currentModal === 'connection',
+    initialSequenceComplete,
+    triggerConnectionModal: showConnectionModal,
   };
 };

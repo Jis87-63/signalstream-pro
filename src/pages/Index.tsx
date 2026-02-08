@@ -13,8 +13,21 @@ import { useFirebaseVelas } from '@/hooks/useFirebaseVelas';
 import { useSignalLogic } from '@/hooks/useSignalLogic';
 import { useModalSequence } from '@/hooks/useModalSequence';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { useVisitorTracking } from '@/hooks/useVisitorTracking';
 
 const Index = () => {
+  const { 
+    closeModal, 
+    showNotificationModal, 
+    showWhatsAppModal, 
+    showPremiumModal, 
+    showAvisoModal,
+    showConnectionModal,
+    initialSequenceComplete,
+    triggerConnectionModal
+  } = useModalSequence();
+  
+  // Só conectar ao servidor DEPOIS que a sequência inicial de modais terminar
   const { 
     velas, 
     isConnected, 
@@ -22,16 +35,18 @@ const Index = () => {
     connectionStatus,
     showConnectionSuccess,
     closeConnectionSuccess
-  } = useFirebaseVelas();
-  const signal = useSignalLogic(velas, lastTimestamp || undefined);
-  const { 
-    closeModal, 
-    showNotificationModal, 
-    showWhatsAppModal, 
-    showPremiumModal, 
-    showAvisoModal 
-  } = useModalSequence();
+  } = useFirebaseVelas(initialSequenceComplete);
+  
+  const signal = useSignalLogic(velas, lastTimestamp || undefined, isConnected);
   const { requestPermission } = usePushNotifications();
+  const { trackAction } = useVisitorTracking();
+
+  // Quando conectar com sucesso, mostrar modal de conexão
+  useEffect(() => {
+    if (showConnectionSuccess && !showConnectionModal) {
+      triggerConnectionModal();
+    }
+  }, [showConnectionSuccess, showConnectionModal, triggerConnectionModal]);
 
   // Bloquear menu de contexto e atalhos de desenvolvedor
   useEffect(() => {
@@ -63,6 +78,12 @@ const Index = () => {
     };
   }, []);
 
+  // Handler para fechar modal de conexão
+  const handleCloseConnectionModal = () => {
+    closeConnectionSuccess();
+    closeModal();
+  };
+
   return (
     <div className="min-h-screen bg-background pb-6">
       <Header isConnected={isConnected} />
@@ -87,13 +108,7 @@ const Index = () => {
         <Footer />
       </main>
 
-      {/* Modal de sucesso na conexão */}
-      <ConnectionSuccessModal 
-        open={showConnectionSuccess} 
-        onClose={closeConnectionSuccess} 
-      />
-
-      {/* Modais - ordem: Notificação → Aviso → WhatsApp → Premium */}
+      {/* Modais - ordem: Notificação → Aviso → Conexão → Premium → WhatsApp */}
       <NotificationModal 
         open={showNotificationModal} 
         onClose={closeModal}
@@ -101,11 +116,20 @@ const Index = () => {
       />
       <AvisoModal 
         open={showAvisoModal} 
-        onClose={closeModal} 
+        onClose={closeModal}
+        onTrackAction={trackAction}
       />
+      
+      {/* Modal de sucesso na conexão */}
+      <ConnectionSuccessModal 
+        open={showConnectionModal} 
+        onClose={handleCloseConnectionModal} 
+      />
+
       <WhatsAppModal 
         open={showWhatsAppModal} 
-        onClose={closeModal} 
+        onClose={closeModal}
+        onTrackAction={trackAction}
       />
       <BotPremiumModal 
         open={showPremiumModal} 

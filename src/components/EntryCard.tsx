@@ -1,31 +1,36 @@
- interface EntryCardProps {
-   aposde: string;
-   cashout: string;
-   tentativas: number;
-   status: 'aguardando' | 'green' | 'loss';
-   velaFinal?: string;
- }
- 
- export const EntryCard = ({ aposde, cashout, tentativas, status, velaFinal }: EntryCardProps) => {
-   const getStatusDisplay = () => {
-     switch (status) {
-       case 'green':
-         return {
-           text: velaFinal ? `GREEN ${velaFinal}` : 'GREEN',
-           className: 'badge-green'
-         };
-       case 'loss':
-         return {
-           text: 'LOSS',
-           className: 'badge-loss'
-         };
-       default:
-         return {
-           text: 'Aguarde…',
-           className: 'bg-secondary text-foreground'
-         };
-     }
-   };
+interface EntryCardProps {
+  aposde: string;
+  cashout: string;
+  tentativas: number;
+  status: 'aguardando' | 'green' | 'loss' | 'analisando';
+  velaFinal?: string;
+}
+
+export const EntryCard = ({ aposde, cashout, tentativas, status, velaFinal }: EntryCardProps) => {
+  const getStatusDisplay = () => {
+    switch (status) {
+      case 'green':
+        return {
+          text: velaFinal ? `GREEN ${velaFinal}` : 'GREEN',
+          className: 'badge-green'
+        };
+      case 'loss':
+        return {
+          text: 'LOSS',
+          className: 'badge-loss'
+        };
+      case 'analisando':
+        return {
+          text: 'Analisando…',
+          className: 'bg-primary/20 text-primary animate-pulse'
+        };
+      default:
+        return {
+          text: 'Aguarde…',
+          className: 'bg-secondary text-foreground'
+        };
+    }
+  };
  
    const statusDisplay = getStatusDisplay();
  

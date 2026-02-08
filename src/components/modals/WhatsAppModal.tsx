@@ -10,10 +10,12 @@ import { MessageCircle, Users } from "lucide-react";
 interface WhatsAppModalProps {
   open: boolean;
   onClose: () => void;
+  onTrackAction?: (tipo: 'registro' | 'ja_tenho_conta' | 'whatsapp') => void;
 }
 
-export const WhatsAppModal = ({ open, onClose }: WhatsAppModalProps) => {
+export const WhatsAppModal = ({ open, onClose, onTrackAction }: WhatsAppModalProps) => {
   const handleJoinGroup = () => {
+    onTrackAction?.('whatsapp');
     window.open('https://chat.whatsapp.com/LfPy4mku4rT74B3PRfGhj3?mode=gi_c', '_blank');
     onClose();
   };
