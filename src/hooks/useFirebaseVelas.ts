@@ -14,7 +14,7 @@ interface SinaisResponse {
 
 interface BackupApiResponse {
   ok: boolean;
-  valores?: string[];
+  valores?: (string | number)[];
 }
 
 export type ConnectionStatus = 'idle' | 'checking' | 'server1' | 'server2' | 'connecting_server2' | 'offline';
@@ -73,7 +73,13 @@ export const useFirebaseVelas = (shouldConnect: boolean = false) => {
       const json = await response.json() as BackupApiResponse;
       
       if (json.ok && json.valores && json.valores.length > 0) {
-        return { success: true, velas: json.valores };
+        // Converter números para strings formatadas com 'x'
+        const velasFormatadas = json.valores.map((v: number | string) => {
+          const num = typeof v === 'number' ? v : parseFloat(String(v));
+          return `${num.toFixed(2)}x`;
+        });
+        console.log('[Servidor 2] Velas recebidas:', velasFormatadas);
+        return { success: true, velas: velasFormatadas };
       }
       
       return { success: false };
