@@ -235,14 +235,17 @@ export const useSignalLogic = (velas: string[], lastTimestamp?: number, isConnec
     
     // Se a vela mudou, temos uma nova rodada
     if (currentVela !== lastVelaRef.current) {
+      const previousVela = lastVelaRef.current;
       lastVelaRef.current = currentVela;
       
-      // Se não há sinal ativo, tentar gerar um novo
-      if (!signal.isActive || signal.status === 'green') {
-        generateSignal();
-      } else {
-        // Verificar resultado do sinal atual
+      console.log('[Sinais] Nova vela detectada:', currentVela, '| Anterior:', previousVela);
+      
+      // Se há sinal ativo aguardando, verificar resultado primeiro
+      if (signal.isActive && signal.status === 'aguardando') {
         checkResult();
+      } else {
+        // Se não há sinal ativo ou já deu resultado, gerar novo
+        generateSignal();
       }
     }
   }, [velas, isConnected, signal.isActive, signal.status, generateSignal, checkResult]);
