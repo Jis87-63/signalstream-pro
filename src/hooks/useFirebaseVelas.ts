@@ -1,26 +1,27 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { initializeApp, getApps } from 'firebase/app';
+import { getDatabase, ref, onValue, query, limitToLast } from 'firebase/database';
 
-interface SinaisResponse {
-  status: string;
-  servidor: string;
-  data: string;
-  message?: string;
-  ultimaVela?: string;
-  maiorVela?: string;
-  totalVelas?: number;
+const firebaseConfig = {
+  apiKey: "AIzaSyA3uAHrQyJCSyIQzP8X3Uq7ukJ2lWy0tg8",
+  authDomain: "bot-ia-20e75.firebaseapp.com",
+  databaseURL: "https://bot-ia-20e75-default-rtdb.firebaseio.com",
+  projectId: "bot-ia-20e75"
+};
+
+// Initialize Firebase only once
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+const database = getDatabase(app);
+
+interface VelaData {
+  timestamp: number;
+  ultimaVela: string;
+  maiorVela: string;
+  totalVelas: number;
   velas: string[];
 }
 
-interface BackupApiResponse {
-  ok: boolean;
-  valores?: (string | number)[];
-}
-
-export type ConnectionStatus = 'idle' | 'checking' | 'server1' | 'server2' | 'connecting_server2' | 'offline';
-
-const STALE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutos
-const BACKUP_API_URL = 'https://app.sscashout.online/api/velas';
+export type ConnectionStatus = 'idle' | 'checking' | 'server1' | 'offline';
 
 export const useFirebaseVelas = (shouldConnect: boolean = false) => {
   const [velas, setVelas] = useState<string[]>([]);
@@ -31,155 +32,57 @@ export const useFirebaseVelas = (shouldConnect: boolean = false) => {
   const [showConnectionSuccess, setShowConnectionSuccess] = useState(false);
   
   const hasShownSuccessRef = useRef(false);
-  const currentServerRef = useRef<'server1' | 'server2' | null>(null);
-  const hasStartedRef = useRef(false);
 
-  // Buscar do servidor 1 (Firebase via Edge Function)
-  const fetchFromServer1 = useCallback(async (): Promise<{ success: boolean; data?: SinaisResponse }> => {
-    try {
-      const { data, error } = await supabase.functions.invoke('sinais-milionario');
-      
-      if (error) {
-        console.error('Servidor 1 - Erro:', error);
-        return { success: false };
-      }
+  useEffect(() => {
+    if (!shouldConnect) return;
 
-      const response = data as SinaisResponse;
-      
-      if (response.status === 'online' && response.velas) {
-        const timestamp = new Date(response.data).getTime();
-        const now = Date.now();
-        const isStale = (now - timestamp) > STALE_THRESHOLD_MS;
-        
-        if (isStale) {
-          console.log('Servidor 1 - Dados desatualizados (mais de 5 min)');
-          return { success: false };
-        }
-        
-        return { success: true, data: response };
-      }
-      
-      return { success: false };
-    } catch (err) {
-      console.error('Servidor 1 - Exceção:', err);
-      return { success: false };
-    }
-  }, []);
+    setConnectionStatus('checking');
 
-  // Buscar do servidor 2 (Backup API)
-  const fetchFromServer2 = useCallback(async (): Promise<{ success: boolean; velas?: string[] }> => {
-    try {
-      const response = await fetch(BACKUP_API_URL);
-      const json = await response.json() as BackupApiResponse;
+    const dbRef = ref(database, 'historico-velas');
+    
+    const unsubscribe = onValue(dbRef, (snapshot) => {
+      const dados = snapshot.val();
       
-      if (json.ok && json.valores && json.valores.length > 0) {
-        // Converter números para strings formatadas com 'x'
-        const velasFormatadas = json.valores.map((v: number | string) => {
-          const num = typeof v === 'number' ? v : parseFloat(String(v));
-          return `${num.toFixed(2)}x`;
-        });
-        console.log('[Servidor 2] Velas recebidas:', velasFormatadas);
-        return { success: true, velas: velasFormatadas };
-      }
-      
-      return { success: false };
-    } catch (err) {
-      console.error('Servidor 2 - Exceção:', err);
-      return { success: false };
-    }
-  }, []);
-
-  // Salvar vela no histórico (servidor 2)
-  const saveVelaToHistory = useCallback(async (valor: string, servidor: string) => {
-    try {
-      const numericValue = parseFloat(valor);
-      if (isNaN(numericValue)) return;
-
-      await supabase.from('velas_historico').insert({
-        valor: numericValue,
-        servidor
-      });
-    } catch (err) {
-      console.error('Erro ao salvar vela:', err);
-    }
-  }, []);
-
-  // Função principal de busca com fallback
-  const fetchSinais = useCallback(async () => {
-    // Tentar servidor 1 primeiro
-    if (connectionStatus === 'checking' || currentServerRef.current === 'server1' || currentServerRef.current === null) {
-      const server1Result = await fetchFromServer1();
-      
-      if (server1Result.success && server1Result.data) {
-        setVelas(server1Result.data.velas);
-        setIsConnected(true);
-        setLastTimestamp(new Date(server1Result.data.data).getTime());
-        setError(null);
-        
-        if (currentServerRef.current !== 'server1') {
-          currentServerRef.current = 'server1';
-          setConnectionStatus('server1');
-          
-          if (!hasShownSuccessRef.current) {
-            hasShownSuccessRef.current = true;
-            setShowConnectionSuccess(true);
-          }
-        }
+      if (!dados) {
+        setIsConnected(false);
+        setConnectionStatus('offline');
+        setError('Sem dados disponíveis');
         return;
       }
-    }
-    
-    // Se servidor 1 falhou ou está desatualizado, tentar servidor 2
-    if (connectionStatus !== 'server2') {
-      setConnectionStatus('connecting_server2');
-    }
-    
-    const server2Result = await fetchFromServer2();
-    
-    if (server2Result.success && server2Result.velas) {
-      // Salvar velas no histórico quando usando servidor 2
-      if (server2Result.velas[0]) {
-        saveVelaToHistory(server2Result.velas[0], 'server2');
-      }
-      
-      setVelas(server2Result.velas);
-      setIsConnected(true);
-      setLastTimestamp(Date.now());
-      setError(null);
-      
-      if (currentServerRef.current !== 'server2') {
-        currentServerRef.current = 'server2';
-        setConnectionStatus('server2');
+
+      const entries = Object.values(dados) as VelaData[];
+      const sorted = entries.sort((a, b) => b.timestamp - a.timestamp);
+      const latest = sorted[0];
+
+      if (latest && latest.velas) {
+        // Pegar apenas as 4 velas mais recentes
+        const velasRecentes = latest.velas.slice(0, 4).map(v => {
+          const num = parseFloat(v);
+          return isNaN(num) ? v : `${num.toFixed(2)}x`;
+        });
+
+        console.log('[Firebase RT] Velas recebidas:', velasRecentes);
         
+        setVelas(velasRecentes);
+        setLastTimestamp(latest.timestamp);
+        setIsConnected(true);
+        setError(null);
+        setConnectionStatus('server1');
+
         if (!hasShownSuccessRef.current) {
           hasShownSuccessRef.current = true;
           setShowConnectionSuccess(true);
         }
       }
-      return;
-    }
-    
-    // Ambos servidores falharam
-    setIsConnected(false);
-    setConnectionStatus('offline');
-    setError('Todos os servidores offline');
-  }, [connectionStatus, fetchFromServer1, fetchFromServer2, saveVelaToHistory]);
+    }, (err) => {
+      console.error('[Firebase RT] Erro:', err);
+      setIsConnected(false);
+      setConnectionStatus('offline');
+      setError(err.message);
+    });
 
-  // Iniciar conexão quando shouldConnect for true
-  useEffect(() => {
-    if (!shouldConnect || hasStartedRef.current) return;
-    
-    hasStartedRef.current = true;
-    setConnectionStatus('checking');
-    
-    // Buscar sinais inicialmente
-    fetchSinais();
-
-    // Atualizar a cada 3 segundos
-    const interval = setInterval(fetchSinais, 3000);
-
-    return () => clearInterval(interval);
-  }, [shouldConnect, fetchSinais]);
+    return () => unsubscribe();
+  }, [shouldConnect]);
 
   const closeConnectionSuccess = useCallback(() => {
     setShowConnectionSuccess(false);
@@ -191,7 +94,6 @@ export const useFirebaseVelas = (shouldConnect: boolean = false) => {
     lastTimestamp, 
     error,
     connectionStatus,
-    currentServer: currentServerRef.current,
     showConnectionSuccess,
     closeConnectionSuccess
   };
